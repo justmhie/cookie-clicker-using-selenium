@@ -5,21 +5,42 @@ from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 import time
+import random
 
 service = Service(executable_path="chromedriver.exe")
-driver = webdriver.Chrome(service=service)
+options = webdriver.ChromeOptions()
+# Add options to avoid detection
+options.add_argument("--disable-blink-features=AutomationControlled")
+options.add_experimental_option("excludeSwitches", ["enable-automation"])
+options.add_experimental_option('useAutomationExtension', False)
+driver = webdriver.Chrome(service=service, options=options)
+# Remove webdriver property
+driver.execute_script("Object.defineProperty(navigator, 'webdriver', {get: () => undefined})")
 
 driver.get("https://orteil.dashnet.org/cookieclicker/")
 
-WebDriverWait(driver, 30).until(
-    EC.presence_of_element_located((By.XPATH, "//*[contains(text(), 'English')]"))
-)
+print("Waiting for page to load...")
 
-language = driver.find_element(By.XPATH, "//*[contains(text(), 'English')]")
-language.click()
+# Wait for and click language selection
+try:
+    WebDriverWait(driver, 30).until(
+        EC.element_to_be_clickable((By.XPATH, "//*[contains(text(), 'English')]"))
+    )
+    language = driver.find_element(By.XPATH, "//*[contains(text(), 'English')]")
+    language.click()
+    print("Language selected")
+    time.sleep(3)  # Give game time to initialize after language selection
+except Exception as e:
+    print(f"Language selection error (might already be set): {e}")
 
+print("Please solve any CAPTCHA if it appears...")
+print("Waiting 60 seconds before starting automation...")
+time.sleep(60)  # Time to manually solve CAPTCHA
+
+# Now wait for the cookie to be present and clickable
+print("Waiting for game to fully load...")
 WebDriverWait(driver, 30).until(
-    EC.presence_of_element_located((By.ID, "bigCookie"))
+    EC.element_to_be_clickable((By.ID, "bigCookie"))
 )
 
 cookie_id = "bigCookie"
@@ -28,11 +49,13 @@ product_price_prefix = "productPrice"
 product_prefix = "product"
 
 cookie = driver.find_element(By.ID, cookie_id)
-
-time.sleep(30)
+print("Game loaded! Starting automation...")
 
 while True:
     cookie.click()
+    # Add small random delay to mimic human behavior
+    time.sleep(random.uniform(0.01, 0.05))
+
     cookies_count = driver.find_element(By.ID, cookies_id).text.split(" ")[0]
     cookies_count = int(cookies_count.replace(",", ""))
     print(cookies_count)
